@@ -39,7 +39,7 @@ credential, so a gateway that later moves is picked up on the next run.
 
 `OPVIERA_GATEWAY_URL` overrides all of that for self-hosted deployments (include the `/gateway`
 mount, e.g. `https://gateway.example.com/gateway`). An explicit setting always wins. It selects
-*which* Opviera gateway to use; it is not a way to reach a non-Opviera provider.
+_which_ Opviera gateway to use; it is not a way to reach a non-Opviera provider.
 
 ## Configuration
 

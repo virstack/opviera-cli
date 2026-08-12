@@ -1,12 +1,6 @@
 import * as prompts from "@clack/prompts"
 import { UI } from "@/cli/ui"
-import {
-  gatewayUrl,
-  gatewayUrlForKey,
-  gatewayUrlIsPinned,
-  looksLikeApiKey,
-  setResolvedGatewayUrl,
-} from "./config"
+import { gatewayUrl, gatewayUrlForKey, gatewayUrlIsPinned, looksLikeApiKey, setResolvedGatewayUrl } from "./config"
 import { whoami, GatewayError, type WhoAmI } from "./client"
 import * as Credential from "./credential"
 import { provision } from "./provision"
