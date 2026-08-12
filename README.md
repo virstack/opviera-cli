@@ -31,7 +31,7 @@ export OPVIERA_PROJECT_ID=your-project   # required if your key's policy restric
 
 ### Which gateway a key talks to
 
-Nothing to configure, and nothing you *can* configure. Keys carry the environment that issued
+Nothing to configure, and nothing you _can_ configure. Keys carry the environment that issued
 them — a QA key looks like `vsk_qa_…` — and the CLI derives the console for that environment from
 the key itself (`vsk_qa_…` → `qa-console.opviera.ai`, an unmarked production key →
 `console.opviera.ai`). If a key is presented to the wrong deployment, the gateway says so by name
