@@ -29,11 +29,17 @@ export OPVIERA_API_KEY=vsk_…
 export OPVIERA_PROJECT_ID=your-project   # required if your key's policy restricts projects
 ```
 
-### Self-hosted gateways
+### Which gateway a key talks to
 
-`OPVIERA_GATEWAY_URL` points the CLI at a different Opviera deployment (include the `/gateway`
-mount, e.g. `https://gateway.example.com/gateway`). It selects which Opviera gateway to use; it is
-not a way to reach a non-Opviera provider.
+You do not normally set this. The CLI ships a default URL purely to make its first request; the
+gateway that accepts your key then reports its own canonical URL, and the CLI remembers it with the
+credential. Moving the gateway to a new host therefore does not strand installed CLIs on a stale
+address — they pick up the new one on the next run.
+
+`OPVIERA_GATEWAY_URL` overrides that for self-hosted deployments and for bootstrapping a key that
+belongs to a non-production environment (include the `/gateway` mount, e.g.
+`https://gateway.example.com/gateway`). An explicit setting always wins over discovery. It selects
+*which* Opviera gateway to use; it is not a way to reach a non-Opviera provider.
 
 ## Configuration
 

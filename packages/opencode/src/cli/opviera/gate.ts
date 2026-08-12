@@ -1,6 +1,6 @@
 import * as prompts from "@clack/prompts"
 import { UI } from "@/cli/ui"
-import { gatewayUrl, looksLikeApiKey } from "./config"
+import { gatewayUrl, gatewayUrlIsPinned, looksLikeApiKey, setDiscoveredGatewayUrl } from "./config"
 import { whoami, GatewayError, type WhoAmI } from "./client"
 import * as Credential from "./credential"
 import { provision } from "./provision"
@@ -30,12 +30,23 @@ function describe(identity: WhoAmI, projectName: string | null): string {
   return projectName ? `${who}${org} · ${projectName}` : `${who}${org}`
 }
 
+/**
+ * Adopt the gateway URL the deployment reported for this key. Skipped when the operator pinned
+ * OPVIERA_GATEWAY_URL, and skipped for older gateways that do not report one — in both cases the
+ * URL we already reached stays in force.
+ */
+function adoptDiscoveredGateway(identity: WhoAmI): void {
+  if (gatewayUrlIsPinned()) return
+  setDiscoveredGatewayUrl(identity.gateway?.url)
+}
+
 export async function ensureAuthenticated(): Promise<Session> {
   // Non-interactive hatch for CI and containers. Validated exactly like a typed key — it is a
   // different way to supply the credential, not a way to skip the check.
   const envKey = process.env["OPVIERA_API_KEY"]?.trim()
   if (envKey) {
     const identity = await validateOrExit(envKey)
+    adoptDiscoveredGateway(identity)
     const project = resolveProject(identity, process.env["OPVIERA_PROJECT_ID"]?.trim() ?? "")
     if (!project && identity.projectRequired) {
       UI.error("OPVIERA_PROJECT_ID is required for this API key. Set it to one of: " + projectList(identity))
@@ -53,12 +64,21 @@ export async function ensureAuthenticated(): Promise<Session> {
 
   const stored = await Credential.read()
   if (stored) {
+    // Replay the URL this key was last seen on, so a moved gateway is reached on the very first
+    // request rather than after a failed round-trip to the compiled-in default.
+    if (!gatewayUrlIsPinned()) setDiscoveredGatewayUrl(stored.gatewayUrl)
     const identity = await revalidate(stored.key)
     if (identity) {
+      adoptDiscoveredGateway(identity)
+      // Persist a gateway that has moved, so the next run reaches it directly instead of
+      // rediscovering it through the old host every time.
+      const credential =
+        gatewayUrl() === stored.gatewayUrl ? stored : { ...stored, gatewayUrl: gatewayUrl() }
+      if (credential !== stored) await Credential.write(credential)
       // Re-provisioned on every start so a policy change (models added or revoked) takes effect
       // without the user having to sign in again.
-      await provision(identity, stored.projectId)
-      return { credential: stored, identity }
+      await provision(identity, credential.projectId)
+      return { credential, identity }
     }
     // A stored key that no longer works falls through to the prompts below rather than failing —
     // rotating a key should not require finding the credential file.
@@ -95,6 +115,7 @@ export async function ensureAuthenticated(): Promise<Session> {
     spin.start("Validating")
     try {
       identity = await whoami(key)
+      adoptDiscoveredGateway(identity)
       spin.stop("Key accepted")
     } catch (error) {
       const failure = error instanceof GatewayError ? error : undefined

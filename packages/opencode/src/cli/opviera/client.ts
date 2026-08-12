@@ -12,10 +12,21 @@ export interface WhoAmIModel {
   supportsThinking: boolean
 }
 
+/**
+ * Where the gateway that answered says keys like this one should be sent, and what it calls
+ * itself. Optional because an older deployment will not send it — the CLI then keeps using
+ * whatever URL it reached.
+ */
+export interface WhoAmIGateway {
+  environment: string
+  url: string
+}
+
 export interface WhoAmI {
   user: { id: string; name: string | null }
   organization: { id: string; name: string | null }
   key: { prefix: string; upstream: string }
+  gateway?: WhoAmIGateway
   boundProjectId: string | null
   projectRequired: boolean
   projects: WhoAmIProject[]
