@@ -26,10 +26,10 @@ falls back to "No notable changes".
 Two jobs are **off by default**, gated on repository variables so no YAML edit is needed to enable
 them later:
 
-| Job | Enable with | Needs |
-|---|---|---|
-| `sign-cli-windows` | `ENABLE_CODE_SIGNING=true` | Azure Trusted Signing credentials |
-| `build-electron` | `ENABLE_DESKTOP_BUILD=true` | Apple notarization + Sentry; no desktop app yet |
+| Job                | Enable with                 | Needs                                           |
+| ------------------ | --------------------------- | ----------------------------------------------- |
+| `sign-cli-windows` | `ENABLE_CODE_SIGNING=true`  | Azure Trusted Signing credentials               |
+| `build-electron`   | `ENABLE_DESKTOP_BUILD=true` | Apple notarization + Sentry; no desktop app yet |
 
 `publish` runs with `always() && !failure()`, so it proceeds while those are skipped, and the
 signed-Windows artifact download is gated on the same variable.
@@ -107,8 +107,8 @@ script derives from `$APP-$target$archive_ext`. If these ever stop matching, the
 
 ### 5. Code signing (before you announce the URL)
 
-Unsigned binaries are quarantined: macOS reports *"cannot be opened because the developer cannot be
-verified"*, and Windows SmartScreen warns. Upstream's pipeline does Apple notarization and Azure
+Unsigned binaries are quarantined: macOS reports _"cannot be opened because the developer cannot be
+verified"_, and Windows SmartScreen warns. Upstream's pipeline does Apple notarization and Azure
 Trusted Signing; both need Virstack certificates. Until then, expect users to hit Gatekeeper.
 
 ## Verifying

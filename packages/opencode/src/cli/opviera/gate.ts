@@ -140,9 +140,7 @@ export function resolveProject(identity: WhoAmI, typed: string): { identifier: s
   }
   const needle = typed.trim().toLowerCase()
   if (!needle) return undefined
-  return identity.projects.find(
-    (p) => p.identifier.toLowerCase() === needle || p.name.trim().toLowerCase() === needle,
-  )
+  return identity.projects.find((p) => p.identifier.toLowerCase() === needle || p.name.trim().toLowerCase() === needle)
 }
 
 /** No match: show the real list rather than rejecting what the user typed. */
