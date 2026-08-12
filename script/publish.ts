@@ -35,22 +35,37 @@ if (Script.release && !Script.preview) {
 
 await prepareReleaseFiles()
 
-console.log("\n=== cli ===\n")
-await $`bun ./packages/opencode/script/publish.ts`
+// Package publishing (npm) and the desktop channel files are opt-in for Opviera. The
+// GitHub release is the only channel the `curl | bash` installer reads, and every step
+// below can throw — an npm 401, a missing desktop artifact — which would abort this
+// script before the release is taken out of draft at the bottom. A draft release is
+// invisible to /releases/latest, so the installer would keep failing with "Failed to
+// fetch version information" even though the binaries uploaded fine. Turn these on with
+// the ENABLE_PACKAGE_PUBLISH / ENABLE_DESKTOP_BUILD repository variables once the
+// matching credentials exist.
+const enablePackagePublish = process.env.ENABLE_PACKAGE_PUBLISH === "true"
+const enableDesktopBuild = process.env.ENABLE_DESKTOP_BUILD === "true"
 
-console.log("\n=== preview cli ===\n")
-await $`bun ./packages/cli/script/publish.ts`
+if (enablePackagePublish) {
+  console.log("\n=== cli ===\n")
+  await $`bun ./packages/opencode/script/publish.ts`
 
-console.log("\n=== sdk ===\n")
-await $`bun ./packages/sdk/js/script/publish.ts`
+  console.log("\n=== preview cli ===\n")
+  await $`bun ./packages/cli/script/publish.ts`
 
-console.log("\n=== plugin ===\n")
-await $`bun ./packages/plugin/script/publish.ts`
+  console.log("\n=== sdk ===\n")
+  await $`bun ./packages/sdk/js/script/publish.ts`
 
-console.log("\n=== ui ===\n")
-await $`bun ./packages/ui/script/publish.ts`
+  console.log("\n=== plugin ===\n")
+  await $`bun ./packages/plugin/script/publish.ts`
 
-if (Script.release) {
+  console.log("\n=== ui ===\n")
+  await $`bun ./packages/ui/script/publish.ts`
+} else {
+  console.log("\n=== skipping package publish (ENABLE_PACKAGE_PUBLISH is not 'true') ===\n")
+}
+
+if (Script.release && enableDesktopBuild) {
   await $`bun ./packages/desktop/scripts/finalize-latest-json.ts`
   await $`bun ./packages/desktop/scripts/finalize-latest-yml.ts`
 }
