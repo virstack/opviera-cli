@@ -96,5 +96,7 @@ export function renderWordmark(art: { left: string[]; right: string[] }, pad = "
     return parts.join("")
   }
 
-  return art.left.map((row, index) => `${pad}${draw(row, 0)}${gap}${draw(art.right[index] ?? "", leftWidth + gap.length)}`)
+  return art.left.map(
+    (row, index) => `${pad}${draw(row, 0)}${gap}${draw(art.right[index] ?? "", leftWidth + gap.length)}`,
+  )
 }
