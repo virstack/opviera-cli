@@ -39,7 +39,7 @@ address — they pick up the new one on the next run.
 `OPVIERA_GATEWAY_URL` overrides that for self-hosted deployments and for bootstrapping a key that
 belongs to a non-production environment (include the `/gateway` mount, e.g.
 `https://gateway.example.com/gateway`). An explicit setting always wins over discovery. It selects
-*which* Opviera gateway to use; it is not a way to reach a non-Opviera provider.
+_which_ Opviera gateway to use; it is not a way to reach a non-Opviera provider.
 
 ## Configuration
 

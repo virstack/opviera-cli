@@ -72,8 +72,7 @@ export async function ensureAuthenticated(): Promise<Session> {
       adoptDiscoveredGateway(identity)
       // Persist a gateway that has moved, so the next run reaches it directly instead of
       // rediscovering it through the old host every time.
-      const credential =
-        gatewayUrl() === stored.gatewayUrl ? stored : { ...stored, gatewayUrl: gatewayUrl() }
+      const credential = gatewayUrl() === stored.gatewayUrl ? stored : { ...stored, gatewayUrl: gatewayUrl() }
       if (credential !== stored) await Credential.write(credential)
       // Re-provisioned on every start so a policy change (models added or revoked) takes effect
       // without the user having to sign in again.
