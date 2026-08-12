@@ -31,15 +31,15 @@ export OPVIERA_PROJECT_ID=your-project   # required if your key's policy restric
 
 ### Which gateway a key talks to
 
-You do not normally set this. The CLI ships a default URL purely to make its first request; the
-gateway that accepts your key then reports its own canonical URL, and the CLI remembers it with the
-credential. Moving the gateway to a new host therefore does not strand installed CLIs on a stale
-address — they pick up the new one on the next run.
+Nothing to configure. Keys carry the environment that issued them — a QA key looks like
+`vsk_qa_…` — and the CLI resolves the console for that environment from the key itself
+(`vsk_qa_…` → `qa-console.opviera.ai`, an unmarked production key → `console.opviera.ai`). The
+gateway then confirms its own canonical URL on sign-in, and the CLI remembers it with the
+credential, so a gateway that later moves is picked up on the next run.
 
-`OPVIERA_GATEWAY_URL` overrides that for self-hosted deployments and for bootstrapping a key that
-belongs to a non-production environment (include the `/gateway` mount, e.g.
-`https://gateway.example.com/gateway`). An explicit setting always wins over discovery. It selects
-_which_ Opviera gateway to use; it is not a way to reach a non-Opviera provider.
+`OPVIERA_GATEWAY_URL` overrides all of that for self-hosted deployments (include the `/gateway`
+mount, e.g. `https://gateway.example.com/gateway`). An explicit setting always wins. It selects
+*which* Opviera gateway to use; it is not a way to reach a non-Opviera provider.
 
 ## Configuration
 

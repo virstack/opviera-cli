@@ -1,6 +1,12 @@
 import * as prompts from "@clack/prompts"
 import { UI } from "@/cli/ui"
-import { gatewayUrl, gatewayUrlIsPinned, looksLikeApiKey, setDiscoveredGatewayUrl } from "./config"
+import {
+  gatewayUrl,
+  gatewayUrlForKey,
+  gatewayUrlIsPinned,
+  looksLikeApiKey,
+  setResolvedGatewayUrl,
+} from "./config"
 import { whoami, GatewayError, type WhoAmI } from "./client"
 import * as Credential from "./credential"
 import { provision } from "./provision"
@@ -31,13 +37,25 @@ function describe(identity: WhoAmI, projectName: string | null): string {
 }
 
 /**
- * Adopt the gateway URL the deployment reported for this key. Skipped when the operator pinned
- * OPVIERA_GATEWAY_URL, and skipped for older gateways that do not report one — in both cases the
- * URL we already reached stays in force.
+ * Point the CLI at the gateway a key belongs to BEFORE its first request. The marker in the key
+ * is the only signal available at this point, and getting it right matters: sending a QA key to
+ * production returns "Invalid or revoked API key", which reads as a bad key rather than the right
+ * key at the wrong address.
  */
-function adoptDiscoveredGateway(identity: WhoAmI): void {
+function resolveGatewayFromKey(apiKey: string): void {
   if (gatewayUrlIsPinned()) return
-  setDiscoveredGatewayUrl(identity.gateway?.url)
+  const url = gatewayUrlForKey(apiKey)
+  if (url) setResolvedGatewayUrl(url)
+}
+
+/**
+ * Adopt the URL the deployment reports for itself, which supersedes what the marker implied — the
+ * gateway is the authority on its own address. Skipped when the operator pinned
+ * OPVIERA_GATEWAY_URL, and for older gateways that do not report one.
+ */
+function adoptReportedGateway(identity: WhoAmI): void {
+  if (gatewayUrlIsPinned()) return
+  setResolvedGatewayUrl(identity.gateway?.url ?? gatewayUrl())
 }
 
 export async function ensureAuthenticated(): Promise<Session> {
@@ -45,8 +63,9 @@ export async function ensureAuthenticated(): Promise<Session> {
   // different way to supply the credential, not a way to skip the check.
   const envKey = process.env["OPVIERA_API_KEY"]?.trim()
   if (envKey) {
+    resolveGatewayFromKey(envKey)
     const identity = await validateOrExit(envKey)
-    adoptDiscoveredGateway(identity)
+    adoptReportedGateway(identity)
     const project = resolveProject(identity, process.env["OPVIERA_PROJECT_ID"]?.trim() ?? "")
     if (!project && identity.projectRequired) {
       UI.error("OPVIERA_PROJECT_ID is required for this API key. Set it to one of: " + projectList(identity))
@@ -66,10 +85,13 @@ export async function ensureAuthenticated(): Promise<Session> {
   if (stored) {
     // Replay the URL this key was last seen on, so a moved gateway is reached on the very first
     // request rather than after a failed round-trip to the compiled-in default.
-    if (!gatewayUrlIsPinned()) setDiscoveredGatewayUrl(stored.gatewayUrl)
+    if (!gatewayUrlIsPinned()) {
+      if (stored.gatewayUrl) setResolvedGatewayUrl(stored.gatewayUrl)
+      else resolveGatewayFromKey(stored.key)
+    }
     const identity = await revalidate(stored.key)
     if (identity) {
-      adoptDiscoveredGateway(identity)
+      adoptReportedGateway(identity)
       // Persist a gateway that has moved, so the next run reaches it directly instead of
       // rediscovering it through the old host every time.
       const credential = gatewayUrl() === stored.gatewayUrl ? stored : { ...stored, gatewayUrl: gatewayUrl() }
@@ -113,8 +135,9 @@ export async function ensureAuthenticated(): Promise<Session> {
     const spin = prompts.spinner()
     spin.start("Validating")
     try {
+      resolveGatewayFromKey(key)
       identity = await whoami(key)
-      adoptDiscoveredGateway(identity)
+      adoptReportedGateway(identity)
       spin.stop("Key accepted")
     } catch (error) {
       const failure = error instanceof GatewayError ? error : undefined
