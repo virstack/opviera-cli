@@ -31,15 +31,23 @@ export OPVIERA_PROJECT_ID=your-project   # required if your key's policy restric
 
 ### Which gateway a key talks to
 
-Nothing to configure. Keys carry the environment that issued them — a QA key looks like
-`vsk_qa_…` — and the CLI resolves the console for that environment from the key itself
-(`vsk_qa_…` → `qa-console.opviera.ai`, an unmarked production key → `console.opviera.ai`). The
-gateway then confirms its own canonical URL on sign-in, and the CLI remembers it with the
-credential, so a gateway that later moves is picked up on the next run.
+Nothing to configure, and nothing you *can* configure. Keys carry the environment that issued
+them — a QA key looks like `vsk_qa_…` — and the CLI derives the console for that environment from
+the key itself (`vsk_qa_…` → `qa-console.opviera.ai`, an unmarked production key →
+`console.opviera.ai`). If a key is presented to the wrong deployment, the gateway says so by name
+rather than reporting an invalid key.
 
-`OPVIERA_GATEWAY_URL` overrides all of that for self-hosted deployments (include the `/gateway`
-mount, e.g. `https://gateway.example.com/gateway`). An explicit setting always wins. It selects
-_which_ Opviera gateway to use; it is not a way to reach a non-Opviera provider.
+There is deliberately no environment variable to override this. A client that could repoint the
+CLI could route an organisation's traffic, and its keys, somewhere the operator does not control —
+which is the whole reason this fork compiles a single provider in. A self-hosted Enterprise
+deployment gets a build with its own zone compiled in instead.
+
+### Signing in more than once
+
+Credentials are stored per directory, under `~/.local/share/opviera/auth/`, mode `0600`. Running
+the CLI in a different project signs in separately, so one machine can hold keys for several
+projects — or several organisations — without one of them quietly billing work to another.
+`opviera login` and `opviera logout` act on the current directory and say which one.
 
 ## Configuration
 

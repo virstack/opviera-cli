@@ -1,6 +1,6 @@
 import * as prompts from "@clack/prompts"
 import { UI } from "@/cli/ui"
-import { gatewayUrl, gatewayUrlForKey, gatewayUrlIsPinned, looksLikeApiKey, setResolvedGatewayUrl } from "./config"
+import { gatewayUrlForKey, looksLikeApiKey, setResolvedGatewayUrl } from "./config"
 import { whoami, GatewayError, type WhoAmI } from "./client"
 import * as Credential from "./credential"
 import { provision } from "./provision"
@@ -31,25 +31,28 @@ function describe(identity: WhoAmI, projectName: string | null): string {
 }
 
 /**
- * Point the CLI at the gateway a key belongs to BEFORE its first request. The marker in the key
- * is the only signal available at this point, and getting it right matters: sending a QA key to
+ * Point the CLI at the gateway a key belongs to BEFORE its first request. The marker in the key is
+ * the only signal available at this point, and getting it right matters: sending a QA key to
  * production returns "Invalid or revoked API key", which reads as a bad key rather than the right
  * key at the wrong address.
+ *
+ * The gateway's own reported URL is deliberately NOT adopted afterwards. It is one more place a
+ * response could redirect the client, and it has already misfired once by advertising an internal
+ * api hostname. The key decides, and only the key.
  */
 function resolveGatewayFromKey(apiKey: string): void {
-  if (gatewayUrlIsPinned()) return
   const url = gatewayUrlForKey(apiKey)
   if (url) setResolvedGatewayUrl(url)
 }
 
 /**
- * Adopt the URL the deployment reports for itself, which supersedes what the marker implied — the
- * gateway is the authority on its own address. Skipped when the operator pinned
- * OPVIERA_GATEWAY_URL, and for older gateways that do not report one.
+ * Hand the resolved key to the TUI worker, which reaches the model client through the upstream
+ * `Auth` service and never sees this module. provision.ts declares `env: ["OPVIERA_API_KEY"]` on
+ * the provider for exactly this; the worker inherits process.env when it is spawned.
  */
-function adoptReportedGateway(identity: WhoAmI): void {
-  if (gatewayUrlIsPinned()) return
-  setResolvedGatewayUrl(identity.gateway?.url ?? gatewayUrl())
+function exportToWorker(credential: Credential.Credential): void {
+  process.env["OPVIERA_API_KEY"] = credential.key
+  if (credential.projectId) process.env["OPVIERA_PROJECT_ID"] = credential.projectId
 }
 
 export async function ensureAuthenticated(): Promise<Session> {
@@ -59,41 +62,33 @@ export async function ensureAuthenticated(): Promise<Session> {
   if (envKey) {
     resolveGatewayFromKey(envKey)
     const identity = await validateOrExit(envKey)
-    adoptReportedGateway(identity)
     const project = resolveProject(identity, process.env["OPVIERA_PROJECT_ID"]?.trim() ?? "")
     if (!project && identity.projectRequired) {
       UI.error("OPVIERA_PROJECT_ID is required for this API key. Set it to one of: " + projectList(identity))
       process.exit(1)
     }
-    const credential = {
+    const credential: Credential.Credential = {
+      directory: Credential.currentDirectory(),
       key: envKey,
       projectId: project?.identifier ?? null,
       projectName: project?.name ?? null,
-      gatewayUrl: gatewayUrl(),
     }
+    exportToWorker(credential)
     await provision(identity, credential.projectId)
     return { credential, identity }
   }
 
+  // Scoped to this directory: a key signed in for another project is not visible here.
   const stored = await Credential.read()
   if (stored) {
-    // Replay the URL this key was last seen on, so a moved gateway is reached on the very first
-    // request rather than after a failed round-trip to the compiled-in default.
-    if (!gatewayUrlIsPinned()) {
-      if (stored.gatewayUrl) setResolvedGatewayUrl(stored.gatewayUrl)
-      else resolveGatewayFromKey(stored.key)
-    }
+    resolveGatewayFromKey(stored.key)
     const identity = await revalidate(stored.key)
     if (identity) {
-      adoptReportedGateway(identity)
-      // Persist a gateway that has moved, so the next run reaches it directly instead of
-      // rediscovering it through the old host every time.
-      const credential = gatewayUrl() === stored.gatewayUrl ? stored : { ...stored, gatewayUrl: gatewayUrl() }
-      if (credential !== stored) await Credential.write(credential)
+      exportToWorker(stored)
       // Re-provisioned on every start so a policy change (models added or revoked) takes effect
       // without the user having to sign in again.
-      await provision(identity, credential.projectId)
-      return { credential, identity }
+      await provision(identity, stored.projectId)
+      return { credential: stored, identity }
     }
     // A stored key that no longer works falls through to the prompts below rather than failing —
     // rotating a key should not require finding the credential file.
@@ -131,7 +126,6 @@ export async function ensureAuthenticated(): Promise<Session> {
     try {
       resolveGatewayFromKey(key)
       identity = await whoami(key)
-      adoptReportedGateway(identity)
       spin.stop("Key accepted")
     } catch (error) {
       const failure = error instanceof GatewayError ? error : undefined
@@ -151,12 +145,13 @@ export async function ensureAuthenticated(): Promise<Session> {
   }
 
   const credential: Credential.Credential = {
+    directory: Credential.currentDirectory(),
     key,
     projectId: chosen?.identifier ?? null,
     projectName: chosen?.name ?? null,
-    gatewayUrl: gatewayUrl(),
   }
   await Credential.write(credential)
+  exportToWorker(credential)
   await provision(identity, credential.projectId)
 
   prompts.outro(describe(identity, credential.projectName))

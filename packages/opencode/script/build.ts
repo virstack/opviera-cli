@@ -196,6 +196,10 @@ for (const item of targets) {
       OTUI_TREE_SITTER_WORKER_PATH: bunfsRoot + treeSitterWorkerPath,
       OPENCODE_WORKER_PATH: workerPath,
       OPENCODE_CHANNEL: `'${Script.channel}'`,
+      // DNS zone the gateway consoles live under. Compiled in rather than read from the
+      // environment so a client cannot repoint the CLI; a self-hosted Enterprise deployment
+      // builds with its own zone. See packages/opencode/src/cli/opviera/config.ts.
+      OPVIERA_ZONE: `'${process.env["OPVIERA_ZONE"] ?? "opviera.ai"}'`,
       OPENCODE_LIBC: item.os === "linux" ? `'${item.abi ?? "glibc"}'` : "",
       ...(item.os === "linux" ? { "process.env.OPENTUI_LIBC": JSON.stringify(item.abi ?? "glibc") } : {}),
     },

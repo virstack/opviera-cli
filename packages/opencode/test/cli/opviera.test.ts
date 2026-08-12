@@ -1,7 +1,7 @@
 import { describe, expect, test, afterEach } from "bun:test"
 import { resolveProject } from "@/cli/opviera/gate"
 import { whoami, GatewayError } from "@/cli/opviera/client"
-import { looksLikeApiKey, gatewayUrl, DEFAULT_GATEWAY_URL } from "@/cli/opviera/config"
+import { looksLikeApiKey, gatewayUrl, gatewayUrlForKey, DEFAULT_GATEWAY_URL, ZONE } from "@/cli/opviera/config"
 import type { WhoAmI } from "@/cli/opviera/client"
 
 const identity = (over: Partial<WhoAmI> = {}): WhoAmI => ({
@@ -145,10 +145,45 @@ describe("gateway client", () => {
 })
 
 describe("gateway url", () => {
-  test("defaults to the Opviera platform and strips a trailing slash", () => {
+  test("defaults to the production console", () => {
     expect(gatewayUrl()).toBe(DEFAULT_GATEWAY_URL)
-    process.env["OPVIERA_GATEWAY_URL"] = "http://localhost:3000/gateway/"
-    expect(gatewayUrl()).toBe("http://localhost:3000/gateway")
+    expect(DEFAULT_GATEWAY_URL).toBe(`https://console.${ZONE}/gateway`)
+  })
+
+  // There is deliberately no runtime override: a client that could repoint the CLI could route an
+  // organisation's traffic, and its keys, somewhere the operator does not control.
+  test("ignores OPVIERA_GATEWAY_URL", () => {
+    process.env["OPVIERA_GATEWAY_URL"] = "http://evil.example.com/gateway"
+    expect(gatewayUrl()).toBe(DEFAULT_GATEWAY_URL)
     delete process.env["OPVIERA_GATEWAY_URL"]
+  })
+})
+
+describe("gateway url for key", () => {
+  const hex = "b10bdec99fec5c6053179801f60de9d304cecd6e"
+
+  test("an unmarked key is production", () => {
+    expect(gatewayUrlForKey(`vsk_${hex}`)).toBe(`https://console.${ZONE}/gateway`)
+  })
+
+  test("a marked key resolves to that environment's console", () => {
+    expect(gatewayUrlForKey(`vsk_qa_${hex}`)).toBe(`https://qa-console.${ZONE}/gateway`)
+    expect(gatewayUrlForKey(`vsk_stg_${hex}`)).toBe(`https://stg-console.${ZONE}/gateway`)
+  })
+
+  test("never resolves to an api host", () => {
+    for (const key of [`vsk_${hex}`, `vsk_qa_${hex}`]) {
+      expect(gatewayUrlForKey(key)).not.toContain("api.")
+    }
+  })
+
+  test("rejects anything that is not a well-formed key", () => {
+    for (const bad of ["vsk_short", `vsk_QA_${hex}`, `vsk_toolongmarker_${hex}`, hex, ""]) {
+      expect(gatewayUrlForKey(bad)).toBeUndefined()
+    }
+  })
+
+  test("tolerates surrounding whitespace, as a paste would", () => {
+    expect(gatewayUrlForKey(`  vsk_qa_${hex}\n`)).toBe(`https://qa-console.${ZONE}/gateway`)
   })
 })
