@@ -88,10 +88,13 @@ export function Sidebar(props: { sessionID: string; overlay?: boolean }) {
 
         <box flexShrink={0} gap={1} paddingTop={1}>
           <pluginRuntime.Slot name="sidebar_footer" mode="single_winner" session_id={props.sessionID}>
+            {/* Split across two spans so the second half is brighter, mirroring how the wordmark
+                is drawn. Written as "Opv" + "iera" rather than one string, which is why a grep for
+                the old product name never found this line. */}
             <text fg={theme.textMuted}>
-              <span style={{ fg: theme.success }}>•</span> <b>Open</b>
+              <span style={{ fg: theme.success }}>•</span> <b>Opv</b>
               <span style={{ fg: theme.text }}>
-                <b>Code</b>
+                <b>iera</b>
               </span>{" "}
               <span>{InstallationVersion}</span>
             </text>

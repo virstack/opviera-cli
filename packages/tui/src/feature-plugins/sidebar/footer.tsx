@@ -68,10 +68,14 @@ function View(props: { api: TuiPluginApi; sessionID: string }) {
         <span style={{ fg: theme().textMuted }}>{path().parent}/</span>
         <span style={{ fg: theme().text }}>{path().name}</span>
       </text>
+      {/* This footer fills the `sidebar_footer` slot, which is single_winner — so it, not the
+          fallback in routes/session/sidebar.tsx, is what normally renders. Both were split across
+          two spans ("Open" + "Code") to shade the halves differently, which is why the old product
+          name survived every grep for "OpenCode". */}
       <text fg={theme().textMuted}>
-        <span style={{ fg: theme().success }}>•</span> <b>Open</b>
+        <span style={{ fg: theme().success }}>•</span> <b>Opv</b>
         <span style={{ fg: theme().text }}>
-          <b>Code</b>
+          <b>iera</b>
         </span>{" "}
         <span>{props.api.app.version}</span>
       </text>
