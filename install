@@ -443,12 +443,92 @@ if [ -n "${GITHUB_ACTIONS-}" ] && [ "${GITHUB_ACTIONS}" == "true" ]; then
     print_message info "Added $INSTALL_DIR to \$GITHUB_PATH"
 fi
 
+# The Opviera mark. A THIRD copy of the brand art — the other two live in
+# packages/tui/src/logo.ts (the shared raster) and are TypeScript, so a rename or redraw there will
+# not touch this one. This file is served standalone over HTTP and cannot import them; regenerate
+# the copies together.
+#
+# Rows below are SUB-PIXEL rows, two per terminal row: each cell draws ▀ with the upper row as
+# foreground and the lower as background. That doubled vertical resolution is what fits the mark
+# into 11 rows with its interlocking rings still legible. `.` is transparent — no background is
+# emitted, so the mark sits on the terminal's own ground.
+LOGO_PALETTE=(01ebfd 02b9fb 157bf7 0081fd 732df3 4037ee 063af1 004bf8 002ce7 5e0ff5 0818d4 000cde)
+LOGO_ROWS=(
+    ".......13337............"
+    "......11333776.........."
+    ".....1111337778........."
+    ".....01113.76868........"
+    "....0000....688887766..."
+    "....0000..3778aaa676555."
+    "....00013337778aaa665599"
+    "....001313337..aaa....99"
+    "....1333333....aaaa...94"
+    "....77333......aaaa...4."
+    "...66773........aaaa.44."
+    "..886631........aaaa.4.."
+    ".b588710........aaaa4..."
+    ".955b1001.......aaaa...."
+    "9995..111.......aaaa...."
+    "9999..111......68aaa...."
+    "99994..111..556.a8aa...."
+    ".994444211255...888a...."
+    "...444442333....688....."
+    ".........3337.76868....."
+    "..........33377666......"
+    "............77766......."
+)
+# Character -> palette index. Anything absent (`.`) lands past the end and reads as transparent.
+LOGO_INDEX="0123456789ab"
+
+print_logo() {
+    local fg=() bg=() hex r g b cr cg cb row col top bottom t b_ ti bi line
+    # 24-bit where the terminal advertises it, nearest xterm-256 cube colour otherwise. A flat
+    # wordmark reads worse in almost-right colours than in none, which is why the old art fell back
+    # to grey — but a many-coloured mark survives quantisation as the same picture.
+    for hex in "${LOGO_PALETTE[@]}"; do
+        r=$((16#${hex:0:2})); g=$((16#${hex:2:2})); b=$((16#${hex:4:2}))
+        case "${COLORTERM-}" in
+            *truecolor* | *24bit*)
+                fg+=("\033[38;2;$r;$g;${b}m")
+                bg+=("\033[48;2;$r;$g;${b}m")
+                ;;
+            *)
+                cr=$((r < 48 ? 0 : r < 114 ? 1 : (r - 15) / 40))
+                cg=$((g < 48 ? 0 : g < 114 ? 1 : (g - 15) / 40))
+                cb=$((b < 48 ? 0 : b < 114 ? 1 : (b - 15) / 40))
+                fg+=("\033[38;5;$((16 + 36 * cr + 6 * cg + cb))m")
+                bg+=("\033[48;5;$((16 + 36 * cr + 6 * cg + cb))m")
+                ;;
+        esac
+    done
+
+    for ((row = 0; row < ${#LOGO_ROWS[@]}; row += 2)); do
+        top=${LOGO_ROWS[row]}
+        bottom=${LOGO_ROWS[row + 1]}
+        line=""
+        for ((col = 0; col < ${#top}; col++)); do
+            t=${top:col:1}
+            b_=${bottom:col:1}
+            ti=${LOGO_INDEX%%"$t"*}; ti=${#ti}
+            bi=${LOGO_INDEX%%"$b_"*}; bi=${#bi}
+            if [ "$ti" -ge ${#LOGO_PALETTE[@]} ] && [ "$bi" -ge ${#LOGO_PALETTE[@]} ]; then
+                line+=" "
+            elif [ "$bi" -ge ${#LOGO_PALETTE[@]} ]; then
+                line+="${fg[ti]}▀\033[0m"
+            elif [ "$ti" -ge ${#LOGO_PALETTE[@]} ]; then
+                line+="${fg[bi]}▄\033[0m"
+            else
+                line+="${bg[bi]}${fg[ti]}▀\033[0m"
+            fi
+        done
+        echo -e "  $line"
+    done
+}
+
 echo -e ""
-echo -e "${MUTED}               ${NC}░▄░              "
-echo -e "${MUTED}█▀▀█ █▀▀█ █░░█ ${NC}░█░ █▀▀▀ █▀▀▄ ▄▀▀█"
-echo -e "${MUTED}█░░█ █░░█ █░░█ ${NC}░█░ █▀▀▀ █░░░ █▄▄█"
-echo -e "${MUTED}▀▀▀▀ █▀▀▀ ▀▄▄▀ ${NC}░▀░ ▀▀▀▀ ▀░░░ ▀░░▀"
+print_logo
 echo -e ""
+echo -e "        Opviera CLI"
 echo -e ""
 echo -e "${MUTED}Sign in with your Opviera API key to start:${NC}"
 echo -e ""
