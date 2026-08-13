@@ -1,16 +1,6 @@
 import { EOL } from "os"
 import { Schema } from "effect"
-import { logo as glyphs, renderWordmark } from "./logo"
-
-// The non-TTY wordmark. A SECOND, independent copy of the brand art (the shaded one lives in
-// packages/tui/src/logo.ts) — it contains no "opviera" substring, so a grep-driven rename will
-// miss it. Keep the two in sync by hand.
-const wordmark = [
-  `⠀                ▄                 `,
-  `█▀▀█ █▀▀█ █  █   █  █▀▀█ █▀▀▄ ▄▀▀█`,
-  `█  █ █  █ █  █   █  █▀▀▀ █    █▄▄█`,
-  `▀▀▀▀ █▀▀▀ ▀▄▄▀   ▀  ▀▀▀▀ ▀    ▀▀▀▀`,
-]
+import { renderIcon, wordmark } from "./logo"
 
 export class CancelledError extends Schema.TaggedErrorClass<CancelledError>()("UICancelledError", {}) {}
 
@@ -49,17 +39,11 @@ export function empty() {
 }
 
 export function logo(pad?: string) {
-  if (!process.stdout.isTTY && !process.stderr.isTTY) {
-    const result = []
-    for (const row of wordmark) {
-      if (pad) result.push(pad)
-      result.push(row)
-      result.push(EOL)
-    }
-    return result.join("").trimEnd()
-  }
+  // Colour art is noise in a pipe, and the product name is now text rather than glyphs, so the
+  // non-TTY sink gets the real wordmark instead of a hand-maintained ASCII approximation of it.
+  if (!process.stdout.isTTY && !process.stderr.isTTY) return `${pad ?? ""}${wordmark}`
   // Shared with the exit epilogue so the two can never drift apart.
-  return renderWordmark(glyphs, pad ?? "").join(EOL)
+  return renderIcon(pad ?? "").join(EOL)
 }
 
 export async function input(prompt: string): Promise<string> {
