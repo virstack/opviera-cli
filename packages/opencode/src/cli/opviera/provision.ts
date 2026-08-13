@@ -37,9 +37,12 @@ interface ProviderModel {
 
 export async function provision(identity: WhoAmI, projectId: string | null): Promise<string> {
   const headers: Record<string, string> = {
-    // Tags gateway usage as coming from this CLI. Kept as the value the platform already
-    // recognises so usage attribution works without a server-side change.
-    "x-clawgate-client": "opencode",
+    // Tags gateway usage as coming from this CLI. The gateway matches the header value against its
+    // own client list, so this must stay in step with the platform's `CLIENT_TYPE_VALUES` — an
+    // unrecognised marker is not an error, it just falls back to being counted as Claude Code.
+    // Because provision() runs on every launch, changing this value re-tags existing checkouts on
+    // their next start; no migration of committed opviera.json files is needed.
+    "x-clawgate-client": "opviera",
   }
   // A bound key carries its project server-side and projectCheck ignores the header entirely.
   if (projectId && !identity.boundProjectId) headers["x-project-id"] = projectId
